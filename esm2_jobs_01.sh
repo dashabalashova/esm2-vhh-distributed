@@ -26,9 +26,7 @@ for entry in "${jobs[@]}"; do
   ZERO_STAGE="${words[2]}"
 
   if [ "${#words[@]}" -gt 3 ]; then
-    # сохраняем все оставшиеся токены в одну строку (с пробелами)
     EXTRA_ARGS="$(printf '%s ' "${words[@]:3}")"
-    # убираем завершающий пробел
     EXTRA_ARGS="${EXTRA_ARGS%" "}"
   else
     EXTRA_ARGS=""
@@ -41,7 +39,6 @@ for entry in "${jobs[@]}"; do
 
   echo "Submitting $JOB_NAME -> model=$MODEL epochs=$EPOCHS zero=$ZERO_STAGE extra='$EXTRA_ARGS'"
 
-  # ВАЖНО: --export передаёт переменные в окружение джоба, чтобы внутренняя bash -c могла их развернуть
   sbatch --job-name="$JOB_NAME" --output="$OUT" --error="$ERR" \
     --export=ALL,MODEL="$MODEL",EPOCHS="$EPOCHS",ZERO_STAGE="$ZERO_STAGE",EXTRA_ARGS="$EXTRA_ARGS" \
     "$TEMPLATE"

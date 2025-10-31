@@ -192,25 +192,23 @@ def train(args):
         epoch_steps = 0
         local_train_scores = []
         local_train_labels = []
-        epoch_start_time = time.time()
-        if train_sampler is not None:
-            train_sampler.set_epoch(epoch)
+        train_sampler.set_epoch(epoch)
+        train_start_time = time.time()
         for i, batch in enumerate(train_loader):
             batch = {
                 k: v.to(device) for k, v in batch.items() if isinstance(v, torch.Tensor)
             }
-            out = engine(**batch)
-            loss = out.loss
+            output = engine(**batch)
+            loss = output.loss
             loss_val = loss.item()
             running_loss += loss_val
             epoch_loss_sum += loss_val
             epoch_steps += 1
-            logits = out.logits
+            logits = output.logits
             probs = F.softmax(logits, dim=1)[:, 1].detach().cpu().numpy()
             labels_np = batch["labels"].detach().cpu().numpy()
             local_train_scores.append(probs)
             local_train_labels.append(labels_np)
-
             engine.backward(loss)
             engine.step()
 
@@ -218,7 +216,7 @@ def train(args):
                 int(os.environ.get("RANK", "0")) == 0
                 and (step + 1) % args.log_interval == 0
             ):
-                avg_loss = running_loss / (args.log_interval if args.log_interval > 0 else 1)
+                avg_loss = running_loss / args.log_interval
                 print(
                     f"[step {step}] epoch {epoch} step {i} loss={loss_val:.4f} "
                     f"avg_loss={avg_loss:.4f}"
@@ -227,12 +225,11 @@ def train(args):
                     wandb.log({"train/log_avg_loss": avg_loss}, step=step)
                 running_loss = 0.0
             step += 1
-        epoch_train_end_time = time.time()
-        train_epoch_time = epoch_train_end_time - epoch_start_time
-
-        train_epoch_avg_loss = (
-            epoch_loss_sum / epoch_steps if epoch_steps > 0 else float("nan")
-        )
+        
+        train_end_time = time.time()
+        train_epoch_time = train_end_time - train_start_time
+        train_epoch_avg_loss = epoch_loss_sum / epoch_steps
+        
         train_scores_np = np.array([])
         train_labels_np = np.array([])
         local_scores_concat = np.concatenate(local_train_scores, axis=0)
@@ -240,6 +237,7 @@ def train(args):
         gathered = gather_across_ranks((local_scores_concat, local_labels_concat))
         train_scores_np, train_labels_np = concat_gathered_lists(gathered)
         train_epoch_auc = float(roc_auc_score(train_labels_np, train_scores_np))
+        
         if int(os.environ.get("RANK", "0")) == 0:
             print(
                 f"Epoch {epoch} train avg loss: {train_epoch_avg_loss:.4f}, "
@@ -272,18 +270,14 @@ def train(args):
                     labels = batch["labels"].detach().cpu().numpy()
                     all_scores.append(probs)
                     all_labels.append(labels)
-                loss_val_tensor = outputs.loss
-                lval = (
-                    loss_val_tensor.item()
-                    if hasattr(loss_val_tensor, "item")
-                    else float(loss_val_tensor)
-                )
-                all_losses.append(np.array([lval]) * labels.shape[0])
+                loss_val = outputs.loss.item()
+                all_losses.append(np.array([loss_val]) * labels.shape[0])
 
             val_end_time = time.time()
+            val_epoch_time = val_end_time - val_start_time
+            
             local_scores = np.concatenate(all_scores, axis=0)
             local_labels = np.concatenate(all_labels, axis=0)
-            val_epoch_time = val_end_time - val_start_time
             gathered = gather_across_ranks((local_scores, local_labels))
             val_scores_np, val_labels_np = concat_gathered_lists(gathered)
             val_auc = float(roc_auc_score(val_labels_np, val_scores_np))
@@ -337,7 +331,7 @@ def train(args):
 if __name__ == "__main__":
     p = argparse.ArgumentParser()
     p.add_argument("--model", type=str, default="facebook/esm2_t6_8M_UR50D")
-    p.add_argument("--data", type=str, default="data/llama_2K.tsv")
+    p.add_argument("--data", type=str, default="/mnt/data/llama_2K.tsv")
     p.add_argument("--output_dir", type=str, default="outputs")
     p.add_argument("--epochs", type=int, default=2)
     p.add_argument("--batch_size", type=int, default=4)
@@ -359,7 +353,7 @@ if __name__ == "__main__":
     p.add_argument(
         "--wandb", action="store_true", help="enable wandb logging (if installed)"
     )
-    p.add_argument("--wandb_project", type=str, default="esm2-deepspeed")
+    p.add_argument("--wandb_project", type=str, default="esm2-distributed")
     p.add_argument("--wandb_run_name", type=str, default=None)
 
     args = p.parse_args()
