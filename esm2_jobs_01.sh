@@ -7,11 +7,14 @@ mkdir -p "$LOGDIR"
 
 # jobs: MODEL EPOCHS ZERO_STAGE [EXTRA ARGS...]
 jobs=(
-  "facebook/esm2_t6_8M_UR50D 4 0"
-  "facebook/esm2_t12_35M_UR50D 4 0"
-  "facebook/esm2_t30_150M_UR50D 4 0"
-  "facebook/esm2_t33_650M_UR50D 4 0"
-  "facebook/esm2_t36_3B_UR50D 4 0"
+  "facebook/esm2_t6_8M_UR50D 5 0"
+  "facebook/esm2_t12_35M_UR50D 5 0"
+  "facebook/esm2_t30_150M_UR50D 5 0"
+  "facebook/esm2_t33_650M_UR50D 5 0"
+  "facebook/esm2_t36_3B_UR50D 5 0"
+  "facebook/esm2_t48_15B_UR50D 5 1 --fp16"
+  "facebook/esm2_t48_15B_UR50D 5 2 --fp16"
+  "facebook/esm2_t48_15B_UR50D 5 3 --fp16"
 )
 
 for entry in "${jobs[@]}"; do
