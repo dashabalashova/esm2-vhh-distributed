@@ -21,7 +21,4 @@ mkdir -p /root/.triton/autotune
 
 chmod +x esm2_jobs_01.sh
 ./esm2_jobs_01.sh
-
-chmod +x esm2_jobs_02.sh
-./esm2_jobs_02.sh
 ```
