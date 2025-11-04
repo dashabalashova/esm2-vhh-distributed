@@ -187,13 +187,14 @@ def train(args):
     engine.train()
     step = 0
     for epoch in range(args.epochs):
+        start_time = time.time()
         running_loss = 0.0
         epoch_loss_sum = 0.0
         epoch_steps = 0
         local_train_scores = []
         local_train_labels = []
         train_sampler.set_epoch(epoch)
-        train_start_time = time.time()
+        torch.cuda.synchronize()
         for i, batch in enumerate(train_loader):
             batch = {
                 k: v.to(device) for k, v in batch.items() if isinstance(v, torch.Tensor)
@@ -226,8 +227,7 @@ def train(args):
                 running_loss = 0.0
             step += 1
         
-        train_end_time = time.time()
-        train_epoch_time = train_end_time - train_start_time
+        torch.cuda.synchronize()
         train_epoch_avg_loss = epoch_loss_sum / epoch_steps
         
         train_scores_np = np.array([])
@@ -241,14 +241,12 @@ def train(args):
         if int(os.environ.get("RANK", "0")) == 0:
             print(
                 f"Epoch {epoch} train avg loss: {train_epoch_avg_loss:.4f}, "
-                f"train ROC AUC: {train_epoch_auc}, train time: {train_epoch_time:.3f}s"
-            )
+                f"train ROC AUC: {train_epoch_auc}")
         if use_wandb:
             wandb.log(
                 {
                     "train/avg_loss": train_epoch_avg_loss,
                     "train/roc_auc": train_epoch_auc,
-                    "train/epoch_time_sec": train_epoch_time,
                 },
                 step=step,
             )
@@ -257,7 +255,7 @@ def train(args):
         all_labels = []
         all_scores = []
         all_losses = []
-        val_start_time = time.time()
+        torch.cuda.synchronize()
         with torch.no_grad():
             for batch in val_loader:
                 batch = {
@@ -273,8 +271,7 @@ def train(args):
                 loss_val = outputs.loss.item()
                 all_losses.append(np.array([loss_val]) * labels.shape[0])
 
-            val_end_time = time.time()
-            val_epoch_time = val_end_time - val_start_time
+            torch.cuda.synchronize()
             
             local_scores = np.concatenate(all_scores, axis=0)
             local_labels = np.concatenate(all_labels, axis=0)
@@ -289,14 +286,12 @@ def train(args):
             if int(os.environ.get("RANK", "0")) == 0:
                 print(
                     f"Epoch {epoch} validation ROC AUC: {val_auc}  avg loss: {val_avg_loss}  "
-                    f"val time: {val_epoch_time:.3f}s"
                 )
             if use_wandb:
                 wandb.log(
                     {
                         "val/roc_auc": val_auc,
                         "val/avg_loss": val_avg_loss,
-                        "val/epoch_time_sec": val_epoch_time,
                     },
                     step=step,
                 )
@@ -315,6 +310,16 @@ def train(args):
                     print(f"Saved best model/tokenizer to {out} (val_auc={val_auc})")
 
             engine.train()
+        end_time = time.time()
+        epoch_time = end_time - start_time
+        if use_wandb:
+                wandb.log(
+                    {
+                        "epoch_time_sec": epoch_time,
+                    },
+                    step=step,
+                )
+
 
     if int(os.environ.get("RANK", "0")) == 0:
         out = Path(args.output_dir)
@@ -332,7 +337,7 @@ if __name__ == "__main__":
     p = argparse.ArgumentParser()
     p.add_argument("--model", type=str, default="facebook/esm2_t6_8M_UR50D")
     p.add_argument("--data", type=str, default="/mnt/data/llama_2K.tsv")
-    p.add_argument("--output_dir", type=str, default="outputs")
+    p.add_argument("--output_dir", type=str, default="/mnt/data/outputs")
     p.add_argument("--epochs", type=int, default=2)
     p.add_argument("--batch_size", type=int, default=4)
     p.add_argument("--batch_size_ds", type=int, default=16)
@@ -353,7 +358,7 @@ if __name__ == "__main__":
     p.add_argument(
         "--wandb", action="store_true", help="enable wandb logging (if installed)"
     )
-    p.add_argument("--wandb_project", type=str, default="esm2-distributed")
+    p.add_argument("--wandb_project", type=str, default="esm2-vhh-distributed")
     p.add_argument("--wandb_run_name", type=str, default=None)
 
     args = p.parse_args()
