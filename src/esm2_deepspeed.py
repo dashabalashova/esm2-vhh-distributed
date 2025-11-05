@@ -367,8 +367,6 @@ def train(args):
                 )
             ### test end ###
 
-        
-
             engine.train()
         end_time = time.time()
         epoch_time = end_time - start_time
@@ -379,7 +377,6 @@ def train(args):
                     },
                     step=step*args.batch_size,
                 )
-
 
     if int(os.environ.get("RANK", "0")) == 0:
         out = Path(args.output_dir)
