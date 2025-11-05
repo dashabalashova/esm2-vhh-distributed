@@ -5,8 +5,8 @@ LOGDIR="logs"
 mkdir -p "$LOGDIR"
 
 TEMPLATE="jobs/template.sbatch"
-DATA_PATH="/mnt/data/data/processed/vhh_200.tsv"
-WANDB_PROJECT="esm2-v0"
+DATA_PATH="/mnt/data/data/processed/vhh_2K.tsv"
+WANDB_PROJECT="esm2"
 BATCH_FLAGS="--batch_size 4 --batch_size_ds 16"
 
 specs=(
@@ -35,7 +35,7 @@ for spec in "${specs[@]}"; do
   read -r model epochs zs extra <<<"$spec"
   extra=${extra:-}
   size=$(extract_size "$model")
-  wandb_name="${size}-zs${zs}-e${epochs}-bs4-d200"
+  wandb_name="${size}-zs${zs}-e${epochs}-bs4-d2K"
   if [[ "$extra" == "--fp16" ]]; then
     wandb_name="${wandb_name}-fp16"
   fi
