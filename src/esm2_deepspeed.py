@@ -125,6 +125,8 @@ def train(args):
         train_ds = ds
         val_ds = None
 
+    test_ds = SeqTSVDataset(args.data_test)
+
     ds_config = {
         "train_batch_size": args.batch_size_ds,
         "gradient_clipping": args.gradient_clipping,
@@ -161,7 +163,16 @@ def train(args):
 
     val_loader = DataLoader(
         val_ds,
-        batch_size=args.eval_batch_size or args.batch_size,
+        batch_size=args.batch_size,
+        shuffle=False,
+        collate_fn=lambda b: collate_fn(tokenizer, b, args.max_length),
+        num_workers=args.num_workers,
+        pin_memory=True,
+    )
+
+    test_loader = DataLoader(
+        test_ds,
+        batch_size=args.batch_size,
         shuffle=False,
         collate_fn=lambda b: collate_fn(tokenizer, b, args.max_length),
         num_workers=args.num_workers,
@@ -233,6 +244,8 @@ def train(args):
         local_labels_concat = np.concatenate(local_train_labels, axis=0)
         gathered = gather_across_ranks((local_scores_concat, local_labels_concat))
         train_scores_np, train_labels_np = concat_gathered_lists(gathered)
+        
+        # ROC AUC
         train_epoch_auc = float(roc_auc_score(train_labels_np, train_scores_np))
         
         if int(os.environ.get("RANK", "0")) == 0:
@@ -252,19 +265,23 @@ def train(args):
         all_labels = []
         all_scores = []
         all_losses = []
+        all_test_labels = []
+        all_test_scores = []
+        all_test_losses = []
         
         with torch.no_grad():
+            
+            ### val start ###
             for batch in val_loader:
                 batch = {
                     k: v.to(device) for k, v in batch.items() if isinstance(v, torch.Tensor)
                 }
                 outputs = engine(**batch)
                 logits = outputs.logits
-                if logits is not None:
-                    probs = F.softmax(logits, dim=1)[:, 1].detach().cpu().numpy()
-                    labels = batch["labels"].detach().cpu().numpy()
-                    all_scores.append(probs)
-                    all_labels.append(labels)
+                probs = F.softmax(logits, dim=1)[:, 1].detach().cpu().numpy()
+                labels = batch["labels"].detach().cpu().numpy()
+                all_scores.append(probs)
+                all_labels.append(labels)
                 loss_val = outputs.loss.item()
                 all_losses.append(np.array([loss_val]) * labels.shape[0])
             
@@ -272,11 +289,15 @@ def train(args):
             local_labels = np.concatenate(all_labels, axis=0)
             gathered = gather_across_ranks((local_scores, local_labels))
             val_scores_np, val_labels_np = concat_gathered_lists(gathered)
-            val_auc = float(roc_auc_score(val_labels_np, val_scores_np))
+            
+            # losses
             local_losses = np.concatenate(all_losses, axis=0)
             gathered_losses = gather_across_ranks(local_losses)
             total_losses = np.concatenate([g for g in gathered_losses], axis=0)
             val_avg_loss = float(np.mean(total_losses))
+
+            # ROC AUC
+            val_auc = float(roc_auc_score(val_labels_np, val_scores_np))
 
             if int(os.environ.get("RANK", "0")) == 0:
                 print(
@@ -290,6 +311,7 @@ def train(args):
                     },
                     step=step*args.batch_size,
                 )
+            ### val end ###
 
             if int(os.environ.get("RANK", "0")) == 0:
                 if (
@@ -303,6 +325,49 @@ def train(args):
                     model_to_save.save_pretrained(out)
                     tokenizer.save_pretrained(out)
                     print(f"Saved best model/tokenizer to {out} (val_auc={val_auc})")
+
+            ### test start ###
+            for batch in test_loader:
+                batch = {
+                    k: v.to(device) for k, v in batch.items() if isinstance(v, torch.Tensor)
+                }
+                outputs = engine(**batch)
+                logits = outputs.logits
+                probs = F.softmax(logits, dim=1)[:, 1].detach().cpu().numpy()
+                labels = batch["labels"].detach().cpu().numpy()
+                all_test_scores.append(probs)
+                all_test_labels.append(labels)
+                loss_val = outputs.loss.item()
+                all_test_losses.append(np.array([loss_val]) * batch['labels'].shape[0])
+        
+            local_test_scores = np.concatenate(all_test_scores, axis=0)
+            local_test_labels = np.concatenate(all_test_labels, axis=0)
+            gathered_test = gather_across_ranks((local_test_scores, local_test_labels))
+            test_scores_np, test_labels_np = concat_gathered_lists(gathered_test)
+        
+            # losses
+            local_losses_test = np.concatenate(all_test_losses, axis=0)
+            gathered_losses_test = gather_across_ranks(local_losses_test)
+            total_losses_test = np.concatenate([g for g in gathered_losses_test], axis=0)
+            test_avg_loss = float(np.mean(total_losses_test))
+            
+            # ROC AUC
+            test_auc = float(roc_auc_score(test_labels_np, test_scores_np))
+        
+            if int(os.environ.get("RANK", "0")) == 0:
+                print(f"Epoch {epoch} TEST ROC AUC: {test_auc}  avg loss: {test_avg_loss}")
+        
+            if use_wandb:
+                wandb.log(
+                    {
+                        "test/roc_auc": test_auc,
+                        "test/avg_loss": test_avg_loss,
+                    },
+                    step=step * args.batch_size,
+                )
+            ### test end ###
+
+        
 
             engine.train()
         end_time = time.time()
@@ -332,6 +397,7 @@ if __name__ == "__main__":
     p = argparse.ArgumentParser()
     p.add_argument("--model", type=str, default="facebook/esm2_t6_8M_UR50D")
     p.add_argument("--data", type=str, default="/mnt/data/data/processed/vhh_200.tsv")
+    p.add_argument("--data_test", type=str, default="/mnt/data/data/processed/test_vhh_20K.tsv")
     p.add_argument("--output_dir", type=str, default="/mnt/data/outputs")
     p.add_argument("--epochs", type=int, default=5)
     p.add_argument("--batch_size", type=int, default=4)
