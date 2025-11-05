@@ -331,7 +331,7 @@ def train(args):
 if __name__ == "__main__":
     p = argparse.ArgumentParser()
     p.add_argument("--model", type=str, default="facebook/esm2_t6_8M_UR50D")
-    p.add_argument("--data", type=str, default="/mnt/data/llama_2K.tsv")
+    p.add_argument("--data", type=str, default="/mnt/data/data/processed/vhh_200.tsv")
     p.add_argument("--output_dir", type=str, default="/mnt/data/outputs")
     p.add_argument("--epochs", type=int, default=5)
     p.add_argument("--batch_size", type=int, default=4)
