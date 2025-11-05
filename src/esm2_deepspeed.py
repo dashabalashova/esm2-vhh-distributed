@@ -199,6 +199,7 @@ def train(args):
         start_time = time.time()
         running_loss = 0.0
         epoch_loss_sum = 0.0
+        rn = 0
         epoch_steps = 0
         local_train_scores = []
         local_train_labels = []
@@ -212,6 +213,7 @@ def train(args):
             loss = output.loss
             loss_val = loss.item()
             running_loss += loss_val
+            rn += 1
             epoch_loss_sum += loss_val
             epoch_steps += 1
             logits = output.logits
@@ -226,7 +228,7 @@ def train(args):
                 int(os.environ.get("RANK", "0")) == 0
                 and step % args.log_interval == 0
             ):
-                avg_loss = running_loss / args.log_interval
+                avg_loss = running_loss / rn
                 print(
                     f"[step {step}] epoch {epoch} step {i} loss={loss_val:.4f} "
                     f"avg_loss={avg_loss:.4f}"
@@ -234,6 +236,7 @@ def train(args):
                 if use_wandb:
                     wandb.log({"train/log_avg_loss": avg_loss}, step=step*args.batch_size)
                 running_loss = 0.0
+                rn = 0
             step += 1
         
         train_epoch_avg_loss = epoch_loss_sum / epoch_steps
