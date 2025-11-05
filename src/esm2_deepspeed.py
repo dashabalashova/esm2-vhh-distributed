@@ -224,7 +224,7 @@ def train(args):
 
             if (
                 int(os.environ.get("RANK", "0")) == 0
-                and (step + 1) % args.log_interval == 0
+                and step % args.log_interval == 0
             ):
                 avg_loss = running_loss / args.log_interval
                 print(
@@ -408,7 +408,7 @@ if __name__ == "__main__":
     p.add_argument(
         "--fp16", action="store_true", help="enable fp16 in deepspeed config"
     )
-    p.add_argument("--log_interval", type=int, default=64)
+    p.add_argument("--log_interval", type=int, default=10)
     p.add_argument("--num_workers", type=int, default=4)
     p.add_argument("--gradient_clipping", type=float, default=1.0)
     p.add_argument("--val_split", type=float, default=0.2)
