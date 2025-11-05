@@ -1,14 +1,12 @@
 #!/bin/bash
 
 set -euo pipefail
-
 LOGDIR="logs"
 mkdir -p "$LOGDIR"
 
 TEMPLATE="jobs/template.sbatch"
 DATA_PATH="/mnt/data/data/processed/vhh_200.tsv"
 WANDB_PROJECT="esm2-v0"
-
 BATCH_FLAGS="--batch_size 4 --batch_size_ds 16"
 
 specs=(

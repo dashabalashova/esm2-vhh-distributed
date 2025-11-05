@@ -1,7 +1,6 @@
 #!/bin/bash
 
 set -euo pipefail
-
 LOGDIR="logs"
 mkdir -p "$LOGDIR"
 
