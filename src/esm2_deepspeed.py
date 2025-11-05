@@ -179,7 +179,7 @@ def train(args):
         use_wandb = False
 
     if use_wandb:
-        wandb.init(project=args.wandb_project, name=wandb_run_name, config=vars(args))
+        wandb.init(project=args.wandb_project, name=args.wandb_run_name, config=vars(args))
 
     best_val_auc = None
     engine.train()
@@ -221,7 +221,7 @@ def train(args):
                     f"avg_loss={avg_loss:.4f}"
                 )
                 if use_wandb:
-                    wandb.log({"train/log_avg_loss": avg_loss}, step=step)
+                    wandb.log({"train/log_avg_loss": avg_loss}, step=step*args.batch_size)
                 running_loss = 0.0
             step += 1
         
@@ -245,7 +245,7 @@ def train(args):
                     "train/avg_loss": train_epoch_avg_loss,
                     "train/roc_auc": train_epoch_auc,
                 },
-                step=step,
+                step=step*args.batch_size,
             )
 
         engine.eval()
@@ -288,7 +288,7 @@ def train(args):
                         "val/roc_auc": val_auc,
                         "val/avg_loss": val_avg_loss,
                     },
-                    step=step,
+                    step=step*args.batch_size,
                 )
 
             if int(os.environ.get("RANK", "0")) == 0:
@@ -297,7 +297,7 @@ def train(args):
                     or (val_auc is not None and not np.isnan(val_auc) and val_auc > best_val_auc)
                 ):
                     best_val_auc = val_auc
-                    out = Path(args.output_dir+'/'+wandb_run_name)
+                    out = Path(args.output_dir+'/'+args.wandb_run_name)
                     out.mkdir(parents=True, exist_ok=True)
                     model_to_save = engine.module if hasattr(engine, "module") else engine                    
                     model_to_save.save_pretrained(out)
@@ -312,7 +312,7 @@ def train(args):
                     {
                         "epoch_time_sec": epoch_time,
                     },
-                    step=step,
+                    step=step*args.batch_size,
                 )
 
 
