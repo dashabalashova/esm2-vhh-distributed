@@ -2,12 +2,12 @@
 
 set -euo pipefail
 
+LOGDIR="logs"
+mkdir -p "$LOGDIR"
+
 TEMPLATE="jobs/template.sbatch"
 DATA_PATH="/mnt/data/data/processed/vhh_200.tsv"
 WANDB_PROJECT="esm2-v0"
-
-SUBMIT=false
-if [[ "${1:-}" == "--submit" ]]; then SUBMIT=true; fi
 
 specs=(
   "facebook/esm2_t36_3B_UR50D 5 0 4 16"

@@ -2,14 +2,14 @@
 
 set -euo pipefail
 
-TEMPLATE="jobs/template.sbatch"
 LOGDIR="logs"
 mkdir -p "$LOGDIR"
 
+TEMPLATE="jobs/template.sbatch"
 DATA_PATH="/mnt/data/data/processed/vhh_200.tsv"
+WANDB_PROJECT="esm2-v0"
 
 BATCH_FLAGS="--batch_size 4 --batch_size_ds 16"
-WANDB_PROJECT="esm2-v0"
 
 specs=(
   "facebook/esm2_t6_8M_UR50D 5 0"
