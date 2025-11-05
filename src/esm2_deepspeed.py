@@ -179,8 +179,6 @@ def train(args):
         use_wandb = False
 
     if use_wandb:
-        wandb_run_name = ''.join(["esm2-",args.model.split("_")[2],"-e",
-                                 str(args.epochs),"-zs" + str(args.zero_stage)])
         wandb.init(project=args.wandb_project, name=wandb_run_name, config=vars(args))
 
     best_val_auc = None
@@ -335,7 +333,7 @@ if __name__ == "__main__":
     p.add_argument("--model", type=str, default="facebook/esm2_t6_8M_UR50D")
     p.add_argument("--data", type=str, default="/mnt/data/llama_2K.tsv")
     p.add_argument("--output_dir", type=str, default="/mnt/data/outputs")
-    p.add_argument("--epochs", type=int, default=2)
+    p.add_argument("--epochs", type=int, default=5)
     p.add_argument("--batch_size", type=int, default=4)
     p.add_argument("--batch_size_ds", type=int, default=16)
     p.add_argument("--eval_batch_size", type=int, default=None)
@@ -347,15 +345,15 @@ if __name__ == "__main__":
     p.add_argument(
         "--fp16", action="store_true", help="enable fp16 in deepspeed config"
     )
-    p.add_argument("--log_interval", type=int, default=10)
-    p.add_argument("--num_workers", type=int, default=2)
+    p.add_argument("--log_interval", type=int, default=64)
+    p.add_argument("--num_workers", type=int, default=4)
     p.add_argument("--gradient_clipping", type=float, default=1.0)
     p.add_argument("--val_split", type=float, default=0.2)
     p.add_argument("--seed", type=int, default=42)
     p.add_argument(
         "--wandb", action="store_true", help="enable wandb logging (if installed)"
     )
-    p.add_argument("--wandb_project", type=str, default="esm2-vhh-distributed")
+    p.add_argument("--wandb_project", type=str, default="esm2-v0")
     p.add_argument("--wandb_run_name", type=str, default=None)
 
     args = p.parse_args()
