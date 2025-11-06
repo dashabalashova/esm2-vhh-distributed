@@ -4,11 +4,11 @@ Multi-node fine-tuning of ESM-2 on VHH (nanobody) data using DeepSpeed ZeRO. Des
 ## Quickstart — multi-GPU Slurm training and results monitoring
 
 ### Infrastructure
-[Launch Soperator cluster](https://github.com/nebius/nebius-solutions-library/tree/main/soperator). Terraform variables: `infra/terraform.tfvars`.
+Create Shared Filesystems: `https://console.nebius.com/<Project_ID>/filesystems` for `filestore_jail` (1TB) and `filestore_jail_submounts` (1TB). [Launch Soperator cluster](https://github.com/nebius/nebius-solutions-library/tree/main/soperator): Terraform variables are located at `infra/terraform.tfvars`. The provisioned cluster includes 4 x NVIDIA H200 GPUs for high-throughput multi‑GPU distributed model training. Storage layout: Shared filesystem (1 TB) mounted on controller, worker, and login nodes and Persistent volume (1 TB) mounted at `/mnt/data` for datasets and training outputs.
 
 ### Prepare environment
 
-from `/root` on Slurm login node with shared `/mnt/data` mounted
+from `/root` on Slurm login node
 ```
 git clone https://github.com/dashabalashova/esm2-vhh-distributed.git
 cd esm2-vhh-distributed
