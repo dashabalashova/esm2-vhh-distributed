@@ -45,6 +45,13 @@ ESM-2 3B model (data=20K)
 chmod +x jobs/job_03.sh
 jobs/job_03.sh
 ```
+ESM-2 3B model (data=20K) on SSD NRD
+```
+chmod +x scripts/copy_data.sh
+chmod +x jobs/job_04.sh
+scripts/copy_data.sh
+jobs/job_04.sh
+```
 
 ### Monitoring & logs
 
